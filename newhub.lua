@@ -10,7 +10,7 @@ local createLib = function(name)
     local CoreGui = game:GetService("CoreGui")
     
     -- Переменные
-    lib.Name = name or "Hu"
+    lib.Name = name
     lib.Visible = false
     lib.Tabs = {}
     lib.CurrentTab = nil
