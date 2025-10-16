@@ -1,19 +1,12 @@
 -- Custom Rayfield-like Library (Full Implementation)
--- This is a custom-made UI library designed to closely mimic the API and appearance of Rayfield UI Library for Roblox.
--- It includes: Window, Tabs, Sections, Buttons, Toggles, Sliders, Dropdowns, Inputs, Labels, Paragraphs, etc.
--- Note: This is not the official Rayfield library. Official one: https://github.com/Rayfield/Rayfield
--- Use for educational purposes only. Do not violate Roblox TOS.
-
 local Rayfield = {}
 
--- Services
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
--- Utility functions
 local function Create(instanceType, properties)
     local instance = Instance.new(instanceType)
     for property, value in pairs(properties) do
@@ -29,19 +22,17 @@ local function Animate(instance, properties, duration, easingStyle, easingDirect
     return tween
 end
 
--- Colors (matching Rayfield's theme)
 local Colors = {
     Background = Color3.fromRGB(25, 25, 25),
     TabBackground = Color3.fromRGB(30, 30, 30),
     SectionBackground = Color3.fromRGB(35, 35, 35),
     ElementBackground = Color3.fromRGB(40, 40, 40),
-    Accent = Color3.fromRGB(100, 100, 255), -- Blue accent
+    Accent = Color3.fromRGB(100, 100, 255),
     Text = Color3.fromRGB(255, 255, 255),
     TextSecondary = Color3.fromRGB(200, 200, 200),
     Border = Color3.fromRGB(50, 50, 50),
 }
 
--- Main Window Class
 local Window = {}
 Window.__index = Window
 
@@ -52,14 +43,12 @@ function Window.new(title, keybind)
     self.Tabs = {}
     self.Connections = {}
 
-    -- Create ScreenGui
     self.ScreenGui = Create("ScreenGui", {
         Parent = LocalPlayer:WaitForChild("PlayerGui"),
         Name = "RayfieldUI",
         ResetOnSpawn = false,
     })
 
-    -- Main Frame
     self.MainFrame = Create("Frame", {
         Parent = self.ScreenGui,
         Size = UDim2.new(0, 600, 0, 400),
@@ -70,7 +59,6 @@ function Window.new(title, keybind)
     })
     Create("UICorner", {Parent = self.MainFrame, CornerRadius = UDim.new(0, 10)})
 
-    -- Title Bar
     self.TitleBar = Create("Frame", {
         Parent = self.MainFrame,
         Size = UDim2.new(1, 0, 0, 40),
@@ -104,7 +92,6 @@ function Window.new(title, keybind)
         self:Toggle(false)
     end)
 
-    -- Tab Container
     self.TabContainer = Create("Frame", {
         Parent = self.MainFrame,
         Size = UDim2.new(0, 150, 1, -40),
@@ -122,7 +109,6 @@ function Window.new(title, keybind)
     })
     Create("UIListLayout", {Parent = self.TabList, SortOrder = Enum.SortOrder.LayoutOrder})
 
-    -- Content Frame
     self.ContentFrame = Create("Frame", {
         Parent = self.MainFrame,
         Size = UDim2.new(1, -150, 1, -40),
@@ -130,7 +116,6 @@ function Window.new(title, keybind)
         BackgroundTransparency = 1,
     })
 
-    -- Keybind Toggle
     local connection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if not gameProcessed and input.KeyCode == self.Keybind then
             self:Toggle()
@@ -138,7 +123,6 @@ function Window.new(title, keybind)
     end)
     table.insert(self.Connections, connection)
 
-    -- Dragging
     local dragging, dragInput, dragStart, startPos
     self.TitleBar.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
@@ -171,17 +155,16 @@ end
 function Window:Toggle(visible)
     visible = visible ~= nil and visible or not self.MainFrame.Visible
     Animate(self.MainFrame, {Size = visible and UDim2.new(0, 600, 0, 400) or UDim2.new(0, 0, 0, 0)}, 0.3)
-    wait(0.3)
     self.MainFrame.Visible = visible
 end
 
 function Window:CreateTab(name)
     local tab = Tab.new(self, name)
     table.insert(self.Tabs, tab)
+    self.TabList.CanvasSize = UDim2.new(0, 0, 0, #self.Tabs * 35)
     return tab
 end
 
--- Tab Class
 local Tab = {}
 Tab.__index = Tab
 
@@ -191,7 +174,6 @@ function Tab.new(window, name)
     self.Name = name
     self.Sections = {}
 
-    -- Tab Button
     self.TabButton = Create("TextButton", {
         Parent = window.TabList,
         Size = UDim2.new(1, -10, 0, 30),
@@ -206,7 +188,6 @@ function Tab.new(window, name)
         self:Select()
     end)
 
-    -- Content Frame for Tab
     self.Content = Create("ScrollingFrame", {
         Parent = window.ContentFrame,
         Size = UDim2.new(1, 0, 1, 0),
@@ -216,7 +197,14 @@ function Tab.new(window, name)
         CanvasSize = UDim2.new(0, 0, 0, 0),
         Visible = false,
     })
-    Create("UIListLayout", {Parent = self.Content, SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 5)})
+    local listLayout = Create("UIListLayout", {Parent = self.Content, SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 5)})
+    listLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        self.Content.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 10)
+    end)
+
+    if #window.Tabs == 1 then
+        self:Select()
+    end
 
     return self
 end
@@ -236,7 +224,6 @@ function Tab:CreateSection(name)
     return section
 end
 
--- Section Class
 local Section = {}
 Section.__index = Section
 
@@ -245,7 +232,6 @@ function Section.new(tab, name)
     self.Tab = tab
     self.Name = name
 
-    -- Section Frame
     self.SectionFrame = Create("Frame", {
         Parent = tab.Content,
         Size = UDim2.new(1, -10, 0, 30),
@@ -265,20 +251,36 @@ function Section.new(tab, name)
         TextXAlignment = Enum.TextXAlignment.Left,
     })
 
-    -- Container for Elements
     self.ElementContainer = Create("Frame", {
         Parent = self.SectionFrame,
         Size = UDim2.new(1, 0, 0, 0),
         Position = UDim2.new(0, 0, 1, 0),
         BackgroundTransparency = 1,
     })
-    Create("UIListLayout", {Parent = self.ElementContainer, SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 5)})
-
-    -- Update Section Size
-    self.ElementContainer:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-        self.SectionFrame.Size = UDim2.new(1, -10, 0, self.ElementContainer.AbsoluteSize.Y + 30)
-        tab.Content.CanvasSize = UDim2.new(0, 0, 0, tab.Content.UIListLayout.AbsoluteContentSize.Y + 10)
+    local elementLayout = Create("UIListLayout", {Parent = self.ElementContainer, SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 5)})
+    elementLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+        self.SectionFrame.Size = UDim2.new(1, -10, 0, elementLayout.AbsoluteContentSize.Y + 30)
+        self.Tab.Content.CanvasSize = UDim2.new(0, 0, 0, self.Tab.Content.UIListLayout.AbsoluteContentSize.Y + 10)
     end)
+
+    return self
+end
+
+local Element = {}
+Element.__index = Element
+
+function Element.new(section, type)
+    local self = setmetatable({}, Element)
+    self.Section = section
+    self.Type = type
+
+    self.Frame = Create("Frame", {
+        Parent = section.ElementContainer,
+        Size = UDim2.new(1, 0, 0, 30),
+        BackgroundColor3 = Colors.ElementBackground,
+        BorderSizePixel = 0,
+    })
+    Create("UICorner", {Parent = self.Frame, CornerRadius = UDim.new(0, 5)})
 
     return self
 end
@@ -357,6 +359,9 @@ end
 function Section:CreateSlider(name, min, max, default, callback)
     local slider = Element.new(self, "Slider")
     slider.Value = default or min
+    slider.Min = min
+    slider.Max = max
+    slider.Name = name
     slider.Label = Create("TextLabel", {
         Parent = slider.Frame,
         Size = UDim2.new(1, 0, 0, 20),
@@ -376,9 +381,10 @@ function Section:CreateSlider(name, min, max, default, callback)
         BorderSizePixel = 0,
     })
     Create("UICorner", {Parent = slider.SliderBar, CornerRadius = UDim.new(1, 0)})
+    local percent = (slider.Value - min) / (max - min)
     slider.Fill = Create("Frame", {
         Parent = slider.SliderBar,
-        Size = UDim2.new((slider.Value - min) / (max - min), 0, 1, 0),
+        Size = UDim2.new(percent, 0, 1, 0),
         BackgroundColor3 = Colors.Accent,
         BorderSizePixel = 0,
     })
@@ -386,31 +392,30 @@ function Section:CreateSlider(name, min, max, default, callback)
     slider.Handle = Create("Frame", {
         Parent = slider.SliderBar,
         Size = UDim2.new(0, 12, 0, 12),
-        Position = UDim2.new((slider.Value - min) / (max - min), -6, 0, -4),
+        Position = UDim2.new(percent, -6, 0, -4),
         BackgroundColor3 = Colors.Accent,
         BorderSizePixel = 0,
     })
     Create("UICorner", {Parent = slider.Handle, CornerRadius = UDim.new(1, 0)})
     local dragging = false
-    slider.Frame.InputBegan:Connect(function(input)
+    slider.SliderBar.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = true
         end
     end)
-    slider.Frame.InputEnded:Connect(function(input)
+    UserInputService.InputEnded:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
             dragging = false
         end
     end)
-    slider.Frame.InputChanged:Connect(function(input)
+    UserInputService.InputChanged:Connect(function(input)
         if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
             local mousePos = UserInputService:GetMouseLocation()
-            local relativePos = mousePos.X - slider.SliderBar.AbsolutePosition.X
-            local percent = math.clamp(relativePos / slider.SliderBar.AbsoluteSize.X, 0, 1)
-            slider.Value = math.floor(min + (max - min) * percent)
+            local relativePos = math.clamp((mousePos.X - slider.SliderBar.AbsolutePosition.X) / slider.SliderBar.AbsoluteSize.X, 0, 1)
+            slider.Value = math.floor(min + (max - min) * relativePos)
             slider.Label.Text = name .. ": " .. slider.Value
-            slider.Fill.Size = UDim2.new(percent, 0, 1, 0)
-            slider.Handle.Position = UDim2.new(percent, -6, 0, -4)
+            slider.Fill.Size = UDim2.new(relativePos, 0, 1, 0)
+            slider.Handle.Position = UDim2.new(relativePos, -6, 0, -4)
             if callback then callback(slider.Value) end
         end
     end)
@@ -422,6 +427,7 @@ function Section:CreateDropdown(name, options, default, callback)
     dropdown.Value = default or options[1]
     dropdown.Options = options
     dropdown.Open = false
+    dropdown.Name = name
     dropdown.Label = Create("TextLabel", {
         Parent = dropdown.Frame,
         Size = UDim2.new(1, -30, 1, 0),
@@ -443,44 +449,48 @@ function Section:CreateDropdown(name, options, default, callback)
         TextSize = 14,
         Font = Enum.Font.SourceSans,
     })
-    dropdown.OptionList = Create("Frame", {
-        Parent = dropdown.Frame,
-        Size = UDim2.new(1, 0, 0, 0),
-        Position = UDim2.new(0, 0, 1, 0),
-        BackgroundColor3 = Colors.ElementBackground,
-        BorderSizePixel = 0,
-        ClipsDescendants = true,
-        Visible = false,
-    })
-    Create("UIListLayout", {Parent = dropdown.OptionList, SortOrder = Enum.SortOrder.LayoutOrder})
-    for _, option in pairs(options) do
-        local optionButton = Create("TextButton", {
-            Parent = dropdown.OptionList,
-            Size = UDim2.new(1, 0, 0, 25),
-            BackgroundTransparency = 1,
-            Text = option,
-            TextColor3 = Colors.Text,
-            Font = Enum.Font.SourceSans,
-            TextSize = 14,
-        })
-        optionButton.MouseButton1Click:Connect(function()
-            dropdown.Value = option
-            dropdown.Label.Text = name .. ": " .. dropdown.Value
-            dropdown:Toggle(false)
-            if callback then callback(dropdown.Value) end
-        end)
-    end
     dropdown.Frame.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dropdown:Toggle(not dropdown.Open)
+            dropdown.Open = not dropdown.Open
+            dropdown.Arrow.Text = dropdown.Open and "▲" or "▼"
+            if dropdown.Open then
+                dropdown.ListFrame = Create("Frame", {
+                    Parent = dropdown.Frame,
+                    Size = UDim2.new(1, 0, 0, #options * 25),
+                    Position = UDim2.new(0, 0, 1, 0),
+                    BackgroundColor3 = Colors.SectionBackground,
+                    BorderSizePixel = 0,
+                    ZIndex = 10,
+                })
+                Create("UICorner", {Parent = dropdown.ListFrame, CornerRadius = UDim.new(0, 5)})
+                local listLayout = Create("UIListLayout", {Parent = dropdown.ListFrame, SortOrder = Enum.SortOrder.LayoutOrder})
+                for i, option in ipairs(options) do
+                    local optionButton = Create("TextButton", {
+                        Parent = dropdown.ListFrame,
+                        Size = UDim2.new(1, 0, 0, 25),
+                        BackgroundTransparency = 1,
+                        Text = option,
+                        TextColor3 = Colors.Text,
+                        Font = Enum.Font.SourceSans,
+                        TextSize = 12,
+                        ZIndex = 10,
+                    })
+                    optionButton.MouseButton1Click:Connect(function()
+                        dropdown.Value = option
+                        dropdown.Label.Text = name .. ": " .. dropdown.Value
+                        dropdown.Open = false
+                        dropdown.Arrow.Text = "▼"
+                        dropdown.ListFrame:Destroy()
+                        if callback then callback(dropdown.Value) end
+                    end)
+                end
+            else
+                if dropdown.ListFrame then
+                    dropdown.ListFrame:Destroy()
+                end
+            end
         end
     end)
-    function dropdown:Toggle(open)
-        self.Open = open
-        self.OptionList.Visible = open
-        self.OptionList.Size = open and UDim2.new(1, 0, 0, #self.Options * 25) or UDim2.new(1, 0, 0, 0)
-        self.Arrow.Text = open and "▲" or "▼"
-    end
     return dropdown
 end
 
@@ -501,28 +511,28 @@ function Section:CreateInput(name, placeholder, callback)
         Parent = input.Frame,
         Size = UDim2.new(1, -110, 1, -4),
         Position = UDim2.new(0, 105, 0, 2),
-        BackgroundColor3 = Colors.ElementBackground,
+        BackgroundColor3 = Colors.SectionBackground,
         Text = "",
         PlaceholderText = placeholder or "",
         TextColor3 = Colors.Text,
         Font = Enum.Font.SourceSans,
-        TextSize = 14,
+        TextSize = 12,
     })
     Create("UICorner", {Parent = input.TextBox, CornerRadius = UDim.new(0, 5)})
     input.TextBox.FocusLost:Connect(function(enterPressed)
-        if callback then callback(input.TextBox.Text, enterPressed) end
+        if callback then callback(input.TextBox.Text) end
     end)
     return input
 end
 
-function Section:CreateLabel(text)
+function Section:CreateLabel(name)
     local label = Element.new(self, "Label")
     label.Label = Create("TextLabel", {
         Parent = label.Frame,
         Size = UDim2.new(1, -10, 1, 0),
         Position = UDim2.new(0, 5, 0, 0),
         BackgroundTransparency = 1,
-        Text = text,
+        Text = name,
         TextColor3 = Colors.Text,
         TextSize = 14,
         Font = Enum.Font.SourceSans,
@@ -531,15 +541,14 @@ function Section:CreateLabel(text)
     return label
 end
 
-function Section:CreateParagraph(title, content)
+function Section:CreateParagraph(name, content)
     local paragraph = Element.new(self, "Paragraph")
-    paragraph.Frame.Size = UDim2.new(1, -10, 0, 50)
-    paragraph.Title = Create("TextLabel", {
+    paragraph.Label = Create("TextLabel", {
         Parent = paragraph.Frame,
         Size = UDim2.new(1, -10, 0, 20),
         Position = UDim2.new(0, 5, 0, 0),
         BackgroundTransparency = 1,
-        Text = title,
+        Text = name,
         TextColor3 = Colors.Text,
         TextSize = 16,
         Font = Enum.Font.SourceSansBold,
@@ -547,40 +556,20 @@ function Section:CreateParagraph(title, content)
     })
     paragraph.Content = Create("TextLabel", {
         Parent = paragraph.Frame,
-        Size = UDim2.new(1, -10, 0, 30),
+        Size = UDim2.new(1, -10, 0, 0),
         Position = UDim2.new(0, 5, 0, 20),
         BackgroundTransparency = 1,
         Text = content,
         TextColor3 = Colors.TextSecondary,
         TextSize = 12,
         Font = Enum.Font.SourceSans,
-        TextXAlignment = Enum.TextXAlignment.Left,
         TextWrapped = true,
+        TextXAlignment = Enum.TextXAlignment.Left,
     })
+    paragraph.Content:GetPropertyChangedSignal("TextBounds"):Connect(function()
+        paragraph.Frame.Size = UDim2.new(1, 0, 0, paragraph.Content.TextBounds.Y + 25)
+    end)
     return paragraph
-end
-
--- Element Base Class
-local Element = {}
-Element.__index = Element
-
-function Element.new(section, type)
-    local self = setmetatable({}, Element)
-    self.Section = section
-    self.Type = type
-
-    self.Frame = Create("Frame", {
-        Parent = section.ElementContainer,
-        Size = UDim2.new(1, -10, 0, 30),
-        BackgroundColor3 = Colors.ElementBackground,
-        BorderSizePixel = 0,
-    })
-    Create("UICorner", {Parent = self.Frame, CornerRadius = UDim.new(0, 5)})
-
-    -- Update container size
-    section.ElementContainer.Size = UDim2.new(1, 0, 0, section.ElementContainer.UIListLayout.AbsoluteContentSize.Y)
-
-    return self
 end
 
 return Rayfield
