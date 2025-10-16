@@ -1,5 +1,5 @@
--- NewHub v3.1 - Roblox GUI Library
--- Full rewritten code with custom keybind control and a Settings tab for keybind change.
+-- NewHub v3.1 - Roblox GUI Library (Full Complete Version with Dropdown)
+-- Features: Tabs, Sections, Buttons, Toggles, Sliders, Dropdowns, Drag, Close Animation, Scroll, Keybind Toggle
 
 local Library = {}
 local TweenService = game:GetService("TweenService")
@@ -144,7 +144,7 @@ local function CreateMainFrame(screenGui, hubName)
     end)
     
     UserInputService.InputChanged:Connect(function(input)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        if input == dragStart and dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
             local delta = input.Position - dragStart
             mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
         end
@@ -160,7 +160,7 @@ local function CreateMainFrame(screenGui, hubName)
     return mainFrame, tabBar, container, currentTab
 end
 
--- Create Tab
+-- Create Tab (Fixed: Auto-open logic without Fire())
 local function CreateTab(hub, name, currentTab)
     local tabBtn = CreateInstance("TextButton", {
         Name = name .. "Tab",
@@ -196,10 +196,11 @@ local function CreateTab(hub, name, currentTab)
     })
     
     tabLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        tabFrame.CanvasSize = UDim2.new(0, 0, 0, tabLayout.AbsoluteContentSize.Y)
+        tabFrame.CanvasSize = UDim2.new(0, 0, 0, tabLayout.AbsoluteContentSize.Y + 10)
     end)
     
-    tabBtn.MouseButton1Click:Connect(function()
+    -- Function to open tab (extracted for auto-open)
+    local function openTab()
         if hub.CurrentTab then
             hub.CurrentTab.Visible = false
         end
@@ -212,11 +213,13 @@ local function CreateTab(hub, name, currentTab)
             end
         end
         tabBtn.BackgroundColor3 = Color3.new(0.4, 0.4, 0.4)
-    end)
+    end
     
-    -- Auto-open first tab
+    tabBtn.MouseButton1Click:Connect(openTab)
+    
+    -- Auto-open first tab (now calls the function directly, no Fire())
     if not hub.CurrentTab then
-        tabBtn.MouseButton1Click:Fire()
+        openTab()
     end
     
     local tab = {
@@ -224,7 +227,7 @@ local function CreateTab(hub, name, currentTab)
         NewSection = function(self, sectionName)
             local section = CreateInstance("Frame", {
                 Name = sectionName,
-                Size = UDim2.new(1, 0, 0, 30),
+                Size = UDim2.new(1, -20, 0, 30),
                 BackgroundColor3 = Color3.new(0.15, 0.15, 0.15),
                 BorderSizePixel = 0,
                 Parent = self.Frame
@@ -253,7 +256,7 @@ local function CreateTab(hub, name, currentTab)
             })
             
             sectionLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-                section.Size = UDim2.new(1, 0, 0, sectionLayout.AbsoluteContentSize.Y)
+                section.Size = UDim2.new(1, -20, 0, sectionLayout.AbsoluteContentSize.Y + 10)
             end)
             
             return {
@@ -354,66 +357,55 @@ local function CreateTab(hub, name, currentTab)
                         Parent = sliderFrame
                     })
                     
-                    local barCorner = CreateInstance("UICorner", {
-                        CornerRadius = UDim.new(0, 5),
-                        Parent = sliderBar
-                    })
-                    
-                    local fill = CreateInstance("Frame", {
+                    local sliderFill = CreateInstance("Frame", {
                         Size = UDim2.new((default - min) / (max - min), 0, 1, 0),
                         BackgroundColor3 = Color3.new(0, 0.5, 0),
                         BorderSizePixel = 0,
                         Parent = sliderBar
                     })
                     
-                    local fillCorner = CreateInstance("UICorner", {
-                        CornerRadius = UDim.new(0, 5),
-                        Parent = fill
-                    })
-                    
-                    local knob = CreateInstance("Frame", {
-                        Size = UDim2.new(0, 20, 0, 20),
-                        Position = UDim2.new((default - min) / (max - min), -10, 0.5, -10),
+                    local sliderKnob = CreateInstance("TextButton", {
+                        Size = UDim2.new(0, 20, 1, 0),
+                        Position = UDim2.new((default - min) / (max - min), -10, 0, 0),
                         BackgroundColor3 = Color3.new(1, 1, 1),
+                        Text = "",
                         BorderSizePixel = 0,
                         Parent = sliderBar
                     })
                     
                     local knobCorner = CreateInstance("UICorner", {
-                        CornerRadius = UDim.new(1, 0),
-                        Parent = knob
+                        CornerRadius = UDim.new(0, 10),
+                        Parent = sliderKnob
                     })
                     
+                    local dragging = false
                     local value = default
-                    local draggingSlider = false
                     
-                    sliderBar.InputBegan:Connect(function(input)
-                        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                            draggingSlider = true
-                        end
+                    local function updateValue()
+                        local percent = math.clamp((UserInputService:GetMouseLocation().X - sliderBar.AbsolutePosition.X) / sliderBar.AbsoluteSize.X, 0, 1)
+                        value = min + (max - min) * percent
+                        sliderFill.Size = UDim2.new(percent, 0, 1, 0)
+                        sliderKnob.Position = UDim2.new(percent, -10, 0, 0)
+                        sliderLabel.Text = text .. ": " .. math.floor(value)
+                        callback(value)
+                    end
+                    
+                    sliderKnob.MouseButton1Down:Connect(function()
+                        dragging = true
                     end)
                     
                     UserInputService.InputEnded:Connect(function(input)
                         if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                            draggingSlider = false
+                            dragging = false
                         end
                     end)
                     
-                    local sliderConnection = RunService.Heartbeat:Connect(function()
-                        if draggingSlider then
-                            local mousePos = UserInputService:GetMouseLocation()
-                            local barPos = sliderBar.AbsolutePosition.X
-                            local barWidth = sliderBar.AbsoluteSize.X
-                            local relativePos = math.clamp((mousePos.X - barPos) / barWidth, 0, 1)
-                            value = min + (max - min) * relativePos
-                            fill.Size = UDim2.new(relativePos, 0, 1, 0)
-                            knob.Position = UDim2.new(relativePos, -10, 0.5, -10)
-                            sliderLabel.Text = text .. ": " .. math.floor(value)
-                            callback(value)
+                    RunService.RenderStepped:Connect(function()
+                        if dragging then
+                            updateValue()
                         end
                     end)
                     
-                    table.insert(Connections, sliderConnection)
                     return sliderFrame
                 end,
                 
@@ -452,31 +444,24 @@ local function CreateTab(hub, name, currentTab)
                         Parent = dropdownBtn
                     })
                     
-                    local dropdownList = CreateInstance("ScrollingFrame", {
-                        Size = UDim2.new(1, 0, 0, 0),
-                        Position = UDim2.new(0, 0, 1, 0),
+                    local dropdownList = CreateInstance("Frame", {
+                        Size = UDim2.new(1, 0, 0, #options * 30),
+                        Position = UDim2.new(0, 0, 1, 5),
                         BackgroundColor3 = Color3.new(0.2, 0.2, 0.2),
-                        BorderSizePixel = 0,
-                        ScrollBarThickness = 8,
-                        ScrollBarImageColor3 = Color3.new(0.8, 0, 0),
                         Visible = false,
+                        BorderSizePixel = 0,
                         Parent = dropdownFrame
-                    })
-                    
-                    local listCorner = CreateInstance("UICorner", {
-                        CornerRadius = UDim.new(0, 4),
-                        Parent = dropdownList
                     })
                     
                     local listLayout = CreateInstance("UIListLayout", {
                         FillDirection = Enum.FillDirection.Vertical,
-                        Padding = UDim.new(0, 2),
                         Parent = dropdownList
                     })
                     
+                    local selected = default or options[1]
                     for _, option in ipairs(options) do
                         local optionBtn = CreateInstance("TextButton", {
-                            Size = UDim2.new(1, 0, 0, 25),
+                            Size = UDim2.new(1, 0, 0, 30),
                             BackgroundColor3 = Color3.new(0.25, 0.25, 0.25),
                             Text = option,
                             TextColor3 = Color3.new(1, 1, 1),
@@ -487,29 +472,15 @@ local function CreateTab(hub, name, currentTab)
                         })
                         
                         optionBtn.MouseButton1Click:Connect(function()
-                            dropdownLabel.Text = text .. ": " .. option
-                            TweenService:Create(dropdownList, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {Size = UDim2.new(1, 0, 0, 0)}):Play()
-                            wait(0.3)
+                            selected = option
+                            dropdownLabel.Text = text .. ": " .. selected
                             dropdownList.Visible = false
-                            callback(option)
+                            callback(selected)
                         end)
                     end
                     
-                    listLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-                        dropdownList.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y)
-                    end)
-                    
-                    local expanded = false
                     dropdownBtn.MouseButton1Click:Connect(function()
-                        expanded = not expanded
-                        if expanded then
-                            dropdownList.Visible = true
-                            TweenService:Create(dropdownList, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {Size = UDim2.new(1, 0, 0, math.min(100, listLayout.AbsoluteContentSize.Y))}):Play()
-                        else
-                            TweenService:Create(dropdownList, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {Size = UDim2.new(1, 0, 0, 0)}):Play()
-                            wait(0.3)
-                            dropdownList.Visible = false
-                        end
+                        dropdownList.Visible = not dropdownList.Visible
                     end)
                     
                     return dropdownFrame
@@ -521,72 +492,29 @@ local function CreateTab(hub, name, currentTab)
     return tab
 end
 
-function Library:CreateHub(hubName)
+-- Main Library Function
+function Library:NewHub(hubName, keybind)
+    keybind = keybind or Enum.KeyCode.K
     local screenGui = CreateScreenGui()
     local mainFrame, tabBar, container, currentTab = CreateMainFrame(screenGui, hubName)
-    mainFrame.Visible = false  -- Hidden by default
     
     local hub = {
         TabBar = tabBar,
         Container = container,
         CurrentTab = currentTab,
-        CreateTab = function(self, name) return CreateTab(self, name, currentTab) end,
-        Keybind = Enum.KeyCode.K  -- Default keybind
+        CreateTab = function(self, name)
+            return CreateTab(self, name, self.CurrentTab)
+        end
     }
     
-    -- Toggle function
-    local function toggleGui()
-        if mainFrame.Visible then
-            TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {Size = UDim2.new(0, 0, 0, 0)}):Play()
-            wait(0.3)
-            mainFrame.Visible = false
-        else
-            mainFrame.Visible = true
-            TweenService:Create(mainFrame, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {Size = UDim2.new(0, 550, 0, 450)}):Play()
+    -- Keybind toggle
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if not gameProcessed and input.KeyCode == keybind then
+            mainFrame.Visible = not mainFrame.Visible
         end
-    end
-    
-    -- Keybind listener
-    local inputConnection
-    inputConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
-        if gameProcessed then return end
-        if input.KeyCode == hub.Keybind then
-            toggleGui()
-        end
-    end)
-    table.insert(Connections, inputConnection)
-    
-    -- Function to set keybind
-    function hub:SetKeybind(newKey)
-        hub.Keybind = newKey
-    end
-    
-    -- Create Settings tab with keybind changer
-    local settingsTab = hub:CreateTab("Settings")
-    local keybindSection = settingsTab:NewSection("Keybind Settings")
-    local keybindBtn = keybindSection:NewButton("Change Keybind (Current: K)", function()
-        keybindBtn.Text = "Press a key..."
-        local newKey
-        local keyConnection
-        keyConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
-            if gameProcessed then return end
-            if input.KeyCode ~= Enum.KeyCode.Unknown then
-                newKey = input.KeyCode
-                keybindBtn.Text = "Change Keybind (Current: " .. input.KeyCode.Name .. ")"
-                hub:SetKeybind(newKey)
-                keyConnection:Disconnect()
-            end
-        end)
     end)
     
     return hub
 end
-
--- Cleanup on teleport
-player.OnTeleport:Connect(function()
-    for _, conn in ipairs(Connections) do
-        conn:Disconnect()
-    end
-end)
 
 return Library
