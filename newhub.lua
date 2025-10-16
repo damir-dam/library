@@ -269,8 +269,8 @@ local RayfieldLibrary = {
 		Default = {
 			TextColor = Color3.fromRGB(0, 255, 0),
 
-			Background = Color3.fromRGB(120, 0, 0),
-			Topbar = Color3.fromRGB(60, 0, 0),
+			Background = Color3.fromRGB(180, 0, 0),
+			Topbar = Color3.fromRGB(80, 0, 0),
 			Shadow = Color3.fromRGB(0, 0, 0),
 
 			NotificationBackground = Color3.fromRGB(20, 20, 20),
